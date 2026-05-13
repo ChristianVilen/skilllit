@@ -1,0 +1,54 @@
+{
+  "name": "code-reviewer",
+  "description": "Code review agent that analyzes git changes and provides comprehensive feedback on code quality, architecture, and best practices.",
+  "tools": ["read", "grep", "glob", "code", "shell"],
+  "allowedTools": ["read", "grep", "glob", "code", "shell"],
+  "model": "claude-opus-4.6",
+  "prompt": "file://../prompts/code-reviewer.prompt.md",
+  "toolsSettings": {
+    "shell": {
+      "allowedCommands": [
+        "diff .*",
+        "find .*",
+        "rg .*",
+        "cat( .*)?",
+        "wc( .*)?",
+        "pwd",
+        "head( .*)?",
+        "tail( .*)?",
+        "jq( .*)?",
+        "yq( .*)?",
+        "git diff.*",
+        "git log.*",
+        "git status.*",
+        "git show.*",
+        "git branch.*",
+        "git switch.*",
+        "git fetch.*",
+        "git rev-parse.*",
+        "npm run test:unit.*",
+        "npm run test:backend.*",
+        "npm run test:e2e.*",
+        "npm run test:integration.*",
+        "npm run lint",
+        "npm run format",
+        "npm run format:fix",
+        "npm run type-check.*",
+        "npx tsc --noEmit.*"
+      ],
+      "deniedCommands": [
+        "git (commit|push|merge|rebase|reset|checkout).*",
+        "rm .*",
+        "mv .*"
+      ]
+    }
+  },
+  "resources": [
+    "file://AGENTS.md",
+    "file://.kiro/steering/**/*.md",
+    "skill://.kiro/skills/**/SKILL.md",
+    "file://README.md",
+    "file://docs/**/*.md"
+  ],
+  "useLegacyMcpJson": false
+}

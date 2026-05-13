@@ -1,0 +1,37 @@
+{
+  "name": "commit",
+  "description": "Commit agent that uses git-surgeon for hunk-level staging, unstaging, discarding, splitting, squashing, fixup, amend, and committing. Never pushes.",
+  "tools": ["read", "shell", "grep", "glob"],
+  "allowedTools": ["read", "shell", "grep", "glob"],
+  "prompt": "file://../prompts/commit.prompt.md",
+  "toolsSettings": {
+    "shell": {
+      "allowedCommands": [
+        "git-surgeon .*",
+        "git status.*",
+        "git log.*",
+        "git diff.*",
+        "git show.*",
+        "git branch.*",
+        "git rev-parse.*",
+        "git add [^-].*",
+        "git commit.*"
+      ],
+      "deniedCommands": [
+        "git push.*",
+        "git add -[aA].*",
+        "git add \\.",
+        "git reset.*",
+        "git rebase.*",
+        "git merge.*",
+        "git update-index.*",
+        "rm .*",
+        "mv .*"
+      ]
+    }
+  },
+  "resources": [
+    "file://../skills/git-surgeon/SKILL.md"
+  ],
+  "useLegacyMcpJson": false
+}

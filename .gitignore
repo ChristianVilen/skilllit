@@ -1,0 +1,7 @@
+.env
+*.auth-state.json
+.playwright-cli/
+traces/
+recordings/
+node_modules/
+.DS_Store
