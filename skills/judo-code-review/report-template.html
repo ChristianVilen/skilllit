@@ -1,0 +1,437 @@
+<!doctype html>
+<!--
+  Judo Code Review — report template.
+
+  Usage (by the reviewing agent):
+    1. Copy this file to a temp/scratch dir as judo-review-<branch>.html
+    2. Replace the __REVIEW_DATA__ placeholder below with a JSON object.
+    3. Open in a browser. Do not edit any HTML/CSS/JS.
+
+  JSON schema for __REVIEW_DATA__:
+  {
+    "meta": {
+      "branch": "feature/x",          // required — or the resolved scope (range, PR)
+      "repo": "my-repo",              // optional
+      "date": "2026-07-06",           // required, ISO date of the review
+      "scope": "feature/x vs main",   // optional, resolved review scope
+      "filesReviewed": 6              // optional
+    },
+    "summary": "One factual sentence: what the change does.",   // required
+    "verdict": "REQUEST_CHANGES",     // "APPROVE" | "APPROVE_WITH_CHANGES" | "REQUEST_CHANGES"
+    "rationale": "One sentence explaining the verdict.",
+    "files": [                        // changed files; [] if not tracked
+      {
+        "path": "src/pipeline/run.ts",
+        "status": "modified",         // "added" | "modified" | "deleted"
+        "linesBefore": 940,
+        "linesAfter": 1080,
+        "crossed1k": true
+      }
+    ],
+    "architecture": {                 // optional — omit if module relationships didn't change
+      "note": "One-liner on the structural impact.",  // optional
+      "modules": [
+        {
+          "name": "pipeline/run",
+          "status": "modified",       // "added" | "modified" | "deleted" | "context"
+          "dependsOn": ["modes/legacy", "api"]   // names of other modules in this list
+        }
+      ]
+    },
+    "findings": [
+      {
+        "id": "B1",                   // B*/S*/C* by tier
+        "severity": "blocker",        // "blocker" | "structural" | "cleanup"
+        "title": "Short imperative title",
+        "file": "src/pipeline/run.ts",
+        "lines": "88-141",            // "42" or "88-141"
+        "problem": "Max two sentences.",
+        "fix": "Sketch or fix direction, plain text.",
+        "diff": "@@ -42,1 +42,1 @@\n-const x = data as any\n+const x = parse(data)",
+                                      // optional unified diff excerpt — preferred for concrete fixes
+        "before": "const x = data as any",   // optional, used only when no "diff" is given
+        "after": "const x = parse(data)",    // optional
+        "lang": "ts"                  // optional, informational only
+      }
+    ]
+  }
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Judo Code Review</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --text: #1a1d21;
+    --muted: #5c6470;
+    --border: #e2e5ea;
+    --code-bg: #f0f1f4;
+    --blocker: #c8362b;
+    --blocker-bg: #fbeae8;
+    --structural: #b26a00;
+    --structural-bg: #fdf3e3;
+    --cleanup: #8a7500;
+    --cleanup-bg: #faf6dd;
+    --approve: #1d7a3e;
+    --approve-bg: #e6f4ea;
+    --add: #1d7a3e;
+    --add-bg: #e6f4ea;
+    --del: #c8362b;
+    --del-bg: #fbeae8;
+    --mod: #b26a00;
+    --mod-bg: #fdf3e3;
+    --ctx-bg: #f0f1f4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161a;
+      --surface: #1d2026;
+      --text: #e6e8eb;
+      --muted: #9aa2ad;
+      --border: #2e323a;
+      --code-bg: #14161a;
+      --blocker: #ff7b6e;
+      --blocker-bg: #3a201d;
+      --structural: #f0a94b;
+      --structural-bg: #362a17;
+      --cleanup: #d9c85a;
+      --cleanup-bg: #31301a;
+      --approve: #6ecb8e;
+      --approve-bg: #1c3324;
+      --add: #6ecb8e;
+      --add-bg: #1e2f24;
+      --del: #ff7b6e;
+      --del-bg: #33201e;
+      --mod: #f0a94b;
+      --mod-bg: #362a17;
+      --ctx-bg: #23262c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  nav {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    padding: 0 20px;
+  }
+  nav .inner { max-width: 880px; margin: 0 auto; display: flex; gap: 4px; align-items: center; }
+  nav .brand { font-weight: 700; font-size: 13px; margin-right: 12px; white-space: nowrap; }
+  nav a {
+    color: var(--muted); text-decoration: none; font-size: 13px;
+    padding: 10px 10px; border-bottom: 2px solid transparent;
+  }
+  nav a:hover { color: var(--text); }
+  main { max-width: 880px; margin: 0 auto; padding: 28px 20px 80px; }
+  .meta { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .banner {
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 28px;
+    border: 1px solid var(--border);
+  }
+  .banner .verdict { font-size: 17px; font-weight: 700; letter-spacing: 0.02em; }
+  .banner .summary { margin-top: 6px; }
+  .banner .summary strong { font-weight: 650; }
+  .banner .rationale { margin-top: 4px; }
+  .banner .counts { margin-top: 8px; font-size: 13px; color: var(--muted); }
+  .banner.request { background: var(--blocker-bg); border-color: var(--blocker); }
+  .banner.request .verdict { color: var(--blocker); }
+  .banner.changes { background: var(--structural-bg); border-color: var(--structural); }
+  .banner.changes .verdict { color: var(--structural); }
+  .banner.approve { background: var(--approve-bg); border-color: var(--approve); }
+  .banner.approve .verdict { color: var(--approve); }
+  h2 { font-size: 15px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 36px 0 12px; scroll-margin-top: 52px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 6px 0; }
+  .tree { list-style: none; margin: 0; padding: 4px 14px; font-size: 14px; }
+  .tree ul { list-style: none; margin: 0; padding-left: 20px; }
+  .tree li { padding: 2px 0; }
+  .tree .dir { color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+  .tree .file-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .tree .fname { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+  .tree .fname.added { color: var(--add); }
+  .tree .fname.deleted { color: var(--del); text-decoration: line-through; }
+  .status-badge {
+    display: inline-block; width: 16px; text-align: center; border-radius: 4px;
+    font-size: 11px; font-weight: 700; font-family: ui-monospace, Menlo, monospace;
+  }
+  .status-badge.added { color: var(--add); background: var(--add-bg); }
+  .status-badge.modified { color: var(--mod); background: var(--mod-bg); }
+  .status-badge.deleted { color: var(--del); background: var(--del-bg); }
+  .sizes { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .delta-up { color: var(--del); }
+  .delta-down { color: var(--add); }
+  .flag-1k {
+    display: inline-block; padding: 1px 8px; border-radius: 99px;
+    font-size: 11px; font-weight: 700; color: var(--blocker); background: var(--blocker-bg);
+  }
+  .arch-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+  .arch-note { color: var(--muted); font-size: 13px; margin: 0 4px 10px; }
+  .arch-svg-wrap { overflow-x: auto; }
+  .arch-legend { display: flex; gap: 14px; margin: 10px 4px 0; font-size: 12px; color: var(--muted); }
+  .arch-legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+  .arch-legend .l-added::before { background: var(--add-bg); border: 1.5px solid var(--add); }
+  .arch-legend .l-modified::before { background: var(--mod-bg); border: 1.5px solid var(--mod); }
+  .arch-legend .l-deleted::before { background: var(--del-bg); border: 1.5px solid var(--del); }
+  .arch-legend .l-context::before { background: var(--ctx-bg); border: 1.5px solid var(--border); }
+  .finding {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px 20px; margin-bottom: 14px; scroll-margin-top: 52px;
+  }
+  .finding-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .chip {
+    padding: 2px 10px; border-radius: 99px; font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap;
+  }
+  .chip.blocker { color: var(--blocker); background: var(--blocker-bg); }
+  .chip.structural { color: var(--structural); background: var(--structural-bg); }
+  .chip.cleanup { color: var(--cleanup); background: var(--cleanup-bg); }
+  .finding-title { font-weight: 650; }
+  .loc { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; color: var(--muted); }
+  .finding p { margin: 10px 0 0; }
+  .finding p strong { font-weight: 650; }
+  details { margin-top: 12px; }
+  summary { cursor: pointer; color: var(--muted); font-size: 13px; user-select: none; }
+  .panes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+  @media (max-width: 640px) { .panes { grid-template-columns: 1fr; } }
+  .pane { border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+  .pane-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 5px 12px; color: var(--muted); }
+  .pane.before { background: var(--del-bg); }
+  .pane.after { background: var(--add-bg); }
+  pre {
+    margin: 0; padding: 10px 12px; overflow-x: auto;
+    font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+    background: var(--code-bg);
+  }
+  .diff-block { border-radius: 8px; border: 1px solid var(--border); overflow: hidden; margin-top: 10px; }
+  .diff-block pre { padding: 8px 0; }
+  .dl { display: block; padding: 0 12px; white-space: pre; }
+  .dl.add { background: var(--add-bg); color: var(--add); }
+  .dl.del { background: var(--del-bg); color: var(--del); }
+  .dl.hunk { color: var(--muted); }
+  .fix-code pre { border-radius: 0; }
+  .empty { color: var(--muted); font-style: italic; }
+</style>
+</head>
+<body>
+<nav><div class="inner" id="nav"></div></nav>
+<main id="app"><p class="empty">Loading…</p></main>
+<script>
+const DATA = __REVIEW_DATA__;
+
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+const SEV = {
+  blocker:    { label: "Blocker",    order: 0 },
+  structural: { label: "Structural", order: 1 },
+  cleanup:    { label: "Cleanup",    order: 2 },
+};
+const VERDICT = {
+  APPROVE:              { label: "APPROVE",              cls: "approve" },
+  APPROVE_WITH_CHANGES: { label: "APPROVE WITH CHANGES", cls: "changes" },
+  REQUEST_CHANGES:      { label: "REQUEST CHANGES",      cls: "request" },
+};
+const STATUS_BADGE = { added: "A", modified: "M", deleted: "D" };
+
+// ---- changed-file tree ----------------------------------------------------
+function buildTree(files) {
+  const root = { dirs: {}, files: [] };
+  for (const f of files) {
+    const parts = f.path.split("/");
+    let node = root;
+    for (const part of parts.slice(0, -1)) {
+      node = node.dirs[part] ??= { dirs: {}, files: [] };
+    }
+    node.files.push({ ...f, name: parts[parts.length - 1] });
+  }
+  return root;
+}
+
+function renderTree(node) {
+  const dirs = Object.keys(node.dirs).sort().map(name =>
+    `<li><span class="dir">${esc(name)}/</span><ul>${renderTree(node.dirs[name])}</ul></li>`);
+  const files = node.files.slice().sort((a, b) => a.name.localeCompare(b.name)).map(f => {
+    const d = (f.linesAfter ?? 0) - (f.linesBefore ?? 0);
+    const deltaCls = d > 0 ? "delta-up" : d < 0 ? "delta-down" : "";
+    const status = f.status || "modified";
+    return `<li><div class="file-row">
+      <span class="status-badge ${esc(status)}">${STATUS_BADGE[status] || "M"}</span>
+      <span class="fname ${esc(status)}">${esc(f.name)}</span>
+      <span class="sizes">${esc(f.linesBefore)} → ${esc(f.linesAfter)}
+        <span class="${deltaCls}">(${d > 0 ? "+" : ""}${d})</span></span>
+      ${f.crossed1k ? '<span class="flag-1k">crossed 1k</span>' : ""}
+    </div></li>`;
+  });
+  return dirs.join("") + files.join("");
+}
+
+// ---- architecture mini-map (layered SVG, no external libs) ----------------
+function renderArch(arch) {
+  const modules = arch?.modules || [];
+  if (!modules.length) return "";
+  const byName = Object.fromEntries(modules.map(m => [m.name, m]));
+
+  const layerOf = {};
+  function layer(name, seen = new Set()) {
+    if (name in layerOf) return layerOf[name];
+    if (seen.has(name) || !byName[name]) return 0;
+    seen.add(name);
+    const deps = (byName[name].dependsOn || []).filter(d => byName[d]);
+    const l = deps.length ? 1 + Math.max(...deps.map(d => layer(d, seen))) : 0;
+    layerOf[name] = l;
+    return l;
+  }
+  modules.forEach(m => layer(m.name));
+
+  const layers = [];
+  for (const m of modules) (layers[layerOf[m.name]] ??= []).push(m);
+  layers.reverse(); // dependencies at the bottom, dependents on top
+
+  const NODE_H = 30, ROW_GAP = 56, X_GAP = 24, PAD = 16;
+  const pos = {};
+  let width = 0;
+  layers.forEach((row, i) => {
+    let x = PAD;
+    for (const m of row) {
+      const w = Math.max(70, m.name.length * 7.5 + 24);
+      pos[m.name] = { x, y: PAD + i * (NODE_H + ROW_GAP), w };
+      x += w + X_GAP;
+    }
+    width = Math.max(width, x - X_GAP + PAD);
+  });
+  const height = PAD * 2 + layers.length * NODE_H + (layers.length - 1) * ROW_GAP;
+
+  const FILL = { added: "var(--add-bg)", modified: "var(--mod-bg)", deleted: "var(--del-bg)", context: "var(--ctx-bg)" };
+  const STROKE = { added: "var(--add)", modified: "var(--mod)", deleted: "var(--del)", context: "var(--border)" };
+
+  const edges = modules.flatMap(m => (m.dependsOn || []).filter(d => pos[d]).map(d => {
+    const a = pos[m.name], b = pos[d];
+    const x1 = a.x + a.w / 2, y1 = a.y + (a.y < b.y ? NODE_H : 0);
+    const x2 = b.x + b.w / 2, y2 = b.y + (b.y < a.y ? NODE_H : 0);
+    const my = (y1 + y2) / 2;
+    return `<path d="M ${x1} ${y1} C ${x1} ${my}, ${x2} ${my}, ${x2} ${y2}"
+      fill="none" stroke="var(--muted)" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.6"/>`;
+  })).join("");
+
+  const nodes = modules.map(m => {
+    const p = pos[m.name], s = m.status || "context";
+    return `<g>
+      <rect x="${p.x}" y="${p.y}" width="${p.w}" height="${NODE_H}" rx="7"
+        fill="${FILL[s] || FILL.context}" stroke="${STROKE[s] || STROKE.context}" stroke-width="1.5"/>
+      <text x="${p.x + p.w / 2}" y="${p.y + NODE_H / 2 + 4}" text-anchor="middle"
+        font-family="ui-monospace, Menlo, monospace" font-size="12" fill="var(--text)"
+        ${s === "deleted" ? 'text-decoration="line-through"' : ""}>${esc(m.name)}</text>
+    </g>`;
+  }).join("");
+
+  const used = new Set(modules.map(m => m.status || "context"));
+  const legend = ["added", "modified", "deleted", "context"].filter(s => used.has(s))
+    .map(s => `<span class="l-${s}">${s}</span>`).join("");
+
+  return `<h2 id="architecture">Architecture impact</h2>
+    <div class="arch-card">
+      ${arch.note ? `<p class="arch-note">${esc(arch.note)}</p>` : ""}
+      <div class="arch-svg-wrap">
+        <svg viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" role="img"
+             aria-label="Module dependency map">
+          <defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M 0 0 L 8 4 L 0 8 z" fill="var(--muted)" opacity="0.7"/>
+          </marker></defs>
+          ${edges}${nodes}
+        </svg>
+      </div>
+      <div class="arch-legend">${legend}</div>
+    </div>`;
+}
+
+// ---- unified diff coloring -------------------------------------------------
+function renderDiff(diff) {
+  const lines = String(diff).split("\n").map(l => {
+    const cls = l.startsWith("+") ? "add" : l.startsWith("-") ? "del"
+      : l.startsWith("@@") ? "hunk" : "ctx";
+    return `<span class="dl ${cls}">${esc(l) || " "}</span>`;
+  }).join("");
+  return `<div class="diff-block"><pre>${lines}</pre></div>`;
+}
+
+// ---- page ------------------------------------------------------------------
+function render() {
+  const m = DATA.meta || {};
+  const findings = (DATA.findings || []).slice()
+    .sort((a, b) => (SEV[a.severity]?.order ?? 9) - (SEV[b.severity]?.order ?? 9));
+  const counts = ["blocker", "structural", "cleanup"]
+    .map(s => [s, findings.filter(f => f.severity === s).length])
+    .filter(([, n]) => n > 0)
+    .map(([s, n]) => `${n} ${SEV[s].label.toLowerCase()}${n > 1 ? "s" : ""}`)
+    .join(" · ") || "no findings";
+  const v = VERDICT[DATA.verdict] || VERDICT.REQUEST_CHANGES;
+  const files = DATA.files || [];
+  const archHtml = renderArch(DATA.architecture);
+
+  const findingCards = findings.map(f => {
+    const sev = SEV[f.severity] || SEV.cleanup;
+    let code = "";
+    if (f.diff) {
+      code = `<details open><summary>diff</summary>${renderDiff(f.diff)}</details>`;
+    } else if (f.before && f.after) {
+      code = `<details open><summary>before / after</summary>
+        <div class="panes">
+          <div class="pane before"><div class="pane-label">Before</div><pre>${esc(f.before)}</pre></div>
+          <div class="pane after"><div class="pane-label">After</div><pre>${esc(f.after)}</pre></div>
+        </div></details>`;
+    } else if (f.before || f.after) {
+      code = `<details open><summary>code</summary><div class="pane fix-code"><pre>${esc(f.before || f.after)}</pre></div></details>`;
+    }
+    return `<article class="finding" id="${esc(f.id)}">
+      <div class="finding-head">
+        <span class="chip ${esc(f.severity)}">${esc(f.id)} · ${sev.label}</span>
+        <span class="finding-title">${esc(f.title)}</span>
+        <span class="loc">${esc(f.file)}:${esc(f.lines)}</span>
+      </div>
+      <p><strong>Problem:</strong> ${esc(f.problem)}</p>
+      <p><strong>Fix:</strong> ${esc(f.fix)}</p>
+      ${code}
+    </article>`;
+  }).join("") || '<p class="empty">No findings.</p>';
+
+  document.getElementById("app").innerHTML = `
+    <div class="meta" id="summary">
+      ${esc(m.repo ? m.repo + " · " : "")}${esc(m.branch || "")} · ${esc(m.date || "")}
+      ${m.scope ? " · " + esc(m.scope) : ""}
+      ${m.filesReviewed ? " · " + esc(m.filesReviewed) + " files reviewed" : ""}
+    </div>
+    <div class="banner ${v.cls}">
+      <div class="verdict">${v.label}</div>
+      <div class="summary"><strong>Change:</strong> ${esc(DATA.summary)}</div>
+      <div class="rationale">${esc(DATA.rationale)}</div>
+      <div class="counts">${counts}</div>
+    </div>
+    ${files.length ? `<h2 id="files">Changed files</h2>
+      <div class="card"><ul class="tree">${renderTree(buildTree(files))}</ul></div>` : ""}
+    ${archHtml}
+    <h2 id="findings">Findings</h2>
+    ${findingCards}`;
+
+  const sections = [
+    ["#summary", "Summary"],
+    files.length ? ["#files", "Files"] : null,
+    archHtml ? ["#architecture", "Architecture"] : null,
+    ["#findings", "Findings"],
+  ].filter(Boolean);
+  document.getElementById("nav").innerHTML =
+    `<span class="brand">🥋 Judo Code Review</span>` +
+    sections.map(([href, label]) => `<a href="${href}">${label}</a>`).join("");
+}
+render();
+</script>
+</body>
+</html>
