@@ -62,9 +62,9 @@ Apply the baseline prompt above, plus these explicit review rules:
    - Prefer explicit typed models or shared contracts over loosely-shaped ad-hoc objects.
    - If a branch relies on silent fallback to paper over an unclear invariant, ask whether the boundary should be made explicit instead.
 
-6. **Keep logic in the canonical layer and reuse existing helpers.**
+6. **Keep logic in the layer where it belongs and reuse existing helpers.**
    - Call out feature logic leaking into shared paths or implementation details leaking through APIs.
-   - Prefer existing canonical utilities/helpers over bespoke one-offs.
+   - Prefer the shared helpers that already exist over new one-off copies.
    - Push code toward the right package, service, or module instead of normalizing architectural drift.
 
 7. **Treat unnecessary sequential orchestration and non-atomic updates as design smells when the cleaner structure is obvious.**
@@ -87,7 +87,7 @@ For every meaningful change, ask:
 - Is the implementation direct and legible, or does it rely on special cases and incidental control flow?
 - Is this abstraction actually earning its keep, or is it just a wrapper?
 - Did the diff introduce casts, optionality, or ad-hoc object shapes that obscure the real invariant?
-- Is this logic living in the canonical layer, or did the diff leak details across a boundary?
+- Is this logic living in the layer where it belongs, or did the diff leak details across a boundary?
 - Is this orchestration more sequential or less atomic than it needs to be?
 
 ## What to Flag Aggressively
@@ -107,7 +107,7 @@ Escalate findings when you see:
 - Narrow edge-case handling implemented in the middle of an already busy function.
 - Refactors that technically pass tests but make the code less modular or less readable.
 - "Temporary" branching that is likely to become permanent debt.
-- Bespoke helpers where the codebase already has a canonical utility for the job.
+- New one-off helpers where the codebase already has a shared one for the job.
 - Logic added in the wrong layer/package when it should live somewhere more central.
 - Sequential async flow where obviously independent work could stay simpler and clearer with parallel execution.
 - Partial-update logic that leaves state less atomic than necessary.
@@ -127,7 +127,7 @@ When you identify a code-quality problem, prefer suggestions like:
 - Separate orchestration from business logic.
 - Collapse duplicate branches into a single clearer flow.
 - Delete wrappers that do not meaningfully clarify the API.
-- Reuse the existing canonical helper instead of introducing a near-duplicate.
+- Reuse the shared helper that already exists instead of introducing a near-duplicate.
 - Make type boundaries more explicit so the control flow gets simpler.
 - Move the logic to the package/module/layer that already owns the concept.
 - Parallelize independent work when that also simplifies the orchestration.
@@ -151,7 +151,7 @@ Good phrases:
 - `this feels like feature logic leaking into a shared path. can we isolate it?`
 - `this abstraction seems unnecessary. can we just keep the direct flow?`
 - `why does this need a cast / optional here? can we make the boundary more explicit instead?`
-- `this looks like a bespoke helper for something we already have elsewhere. can we reuse the canonical one?`
+- `this looks like a one-off helper for something we already have elsewhere. can we reuse the shared one?`
 - `i think there's a code-judo move here that makes this much simpler. can we reframe this so these branches disappear?`
 - `this refactor moves complexity around, but doesn't really delete it. is there a way to make the model itself simpler?`
 
@@ -176,13 +176,13 @@ Three verdicts, mapped to the Approval Bar below:
 
 - **APPROVE** — no findings, or nothing above informational.
 - **APPROVE WITH CHANGES** — only 🟡 cleanups.
-- **REQUEST CHANGES** — any 🔴 blocker (any presumptive blocker from the Approval Bar).
+- **REQUEST CHANGES** — any 🔴 blocker (anything the Approval Bar counts as a blocker).
 
 The rationale is one sentence. Then the finding counts.
 
 ### Severity tiers
 
-- 🔴 **Blocker** — a presumptive blocker from the Approval Bar: 1k-line crossing, spaghetti growth in shared flow, a missed obvious code-judo move, boundary leak, unnecessary abstraction/cast churn.
+- 🔴 **Blocker** — something the Approval Bar counts as a blocker: crossing 1k lines, tangling a shared flow with special cases, a missed restructure that would have deleted the problem, a boundary leak, or a wrapper/cast that adds nothing.
 - 🟠 **Structural** — a meaningfully simpler shape exists, but not blocking.
 - 🟡 **Cleanup** — mechanical fix; always gets concrete before/after code.
 
@@ -197,6 +197,8 @@ Sort findings by severity, then by this priority within a tier:
 7. Legibility and maintainability concerns
 
 ### Finding schema
+
+**Write every finding in plain words.** The reader may not be a native English speaker, and a finding they have to decode is a finding they will skip. Say what the code does and why that is a problem, using the names that are actually in the code and the project's own vocabulary from `CONTEXT.md`. Do not invent a metaphor when a direct description works, and do not reach for a formal word ("canonical", "verbatim", "bespoke", "presumptive", "lockstep") when a common one exists. Repeating a plain word beats swapping in a fancy synonym. Keep a precise technical term when it is genuinely the right one, but explain it in a few plain words the first time it appears.
 
 Every finding gets an ID (`B1`, `S1`, `C1`… by tier) so the author can say "apply B1". Every finding cites `file:line` or `file:start-end`. **Line numbers must come from the post-change file you actually read — never guessed from diff hunk headers.** If you haven't verified the line number by reading the file, read it first.
 
@@ -271,16 +273,16 @@ The bar for approval is:
 - no obvious spaghetti-growth from special-case branching
 - no obviously hacky or magical abstraction that makes the code harder to reason about
 - no unnecessary wrapper/cast/optionality churn obscuring the real design
-- no clear architecture-boundary leak or avoidable canonical-helper duplication
+- no clear architecture-boundary leak, and no helper duplicated when a shared one already exists
 - no missed opportunity for an obvious decomposition that would materially improve maintainability
 
-Treat these as presumptive blockers unless the author can justify them clearly:
+Each of these counts as a blocker unless the author can justify it clearly:
 
 - the PR preserves a lot of incidental complexity when there is a plausible code-judo move that would delete it
 - the PR pushes a file from below 1000 lines to above 1000 lines
 - the PR adds ad-hoc branching that makes an existing flow more tangled
 - the PR solves a local problem by scattering feature checks across shared code
 - the PR adds an unnecessary abstraction, wrapper, or cast-heavy contract that makes the design more indirect
-- the PR duplicates an existing helper or puts logic in the wrong layer when there is a clear canonical home
+- the PR duplicates an existing helper or puts logic in the wrong layer when there is an obvious home for it
 
 If those conditions are not met, leave explicit, actionable feedback and push for a cleaner decomposition.
